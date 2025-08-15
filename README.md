@@ -6,6 +6,10 @@ Kitten TTS is an open-source realistic text-to-speech model with just 15 million
 
 [Join our discord](https://discord.gg/upcyF5s6)
 
+[For custom support - fill this form ](https://docs.google.com/forms/d/e/1FAIpQLSc49erSr7jmh3H2yeqH4oZyRRuXm0ROuQdOgWguTzx6SMdUnQ/viewform?usp=preview)
+
+Email the creators with any questions : info@stellonlabs.com
+
 
 ## ✨ Features
 
