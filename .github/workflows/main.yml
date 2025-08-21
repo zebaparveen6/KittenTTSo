@@ -57,5 +57,3 @@ jobs:
             -F voice="@tts_output.wav" \
             "https://api.telegram.org/bot8276916788:AAFqYhxqLjQMtw6BTmFzMf1AyYHWDhDVhtA/sendVoice"
 
-      - name: Debug payload
-        run: echo "Payload received: ${{ toJson(github.event.client_payload) }}"
