@@ -2,7 +2,7 @@ name: TTS via repository_dispatch
 
 on:
   repository_dispatch:
-    types: [start_ollama]  # Must match your n8n event_type
+    types: [generate-voice]  # Must match your n8n event_type
 
 jobs:
   tts_and_respond:
@@ -75,4 +75,4 @@ jobs:
             -H "Content-Type: multipart/form-data" \
             -F chat_id="$CHAT_ID" \
             -F voice="@tts_output.wav" \
-            "https://api.telegram.org/bot$BOT_TOKEN/sendVoice"
+            "https://api.telegram.org/bot8142084294:AAFXnalKMgO6O-0AzLWcsJXOZjbrlVj7LMc/sendVoice"
