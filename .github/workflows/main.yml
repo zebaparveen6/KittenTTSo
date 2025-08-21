@@ -1,64 +1,78 @@
-name: KittenTTS Voice Sender
+name: TTS via repository_dispatch
 
 on:
-  workflow_dispatch: # manual run
   repository_dispatch:
-    types: [generate-voice]
+    types: [start_ollama]  # Must match your n8n event_type
 
 jobs:
-  build:
+  tts_and_respond:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
 
     steps:
-      - name: Checkout repo
+      # 1️⃣ Checkout repo (if needed)
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      # 2️⃣ Setup Python with pip caching
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
-      - name: Install dependencies with Poetry
+          python-version: '3.10'
+          cache: 'pip'
+
+      # 3️⃣ Debug — display incoming payload for verification
+      - name: Show received payload
         run: |
-          poetry env use 3.11
-          poetry install --no-interaction --no-root
+          echo "------ Incoming Payload ------"
+          echo "CHAT_ID:     ${{ github.event.client_payload.telegram_chat_id }}"
+          echo "USER_ID:     ${{ github.event.client_payload.user_id }}"
+          echo "USER_NAME:   ${{ github.event.client_payload.user_name }}"
+          echo "MESSAGE:     ${{ github.event.client_payload.original_message }}"
+          echo "TIMESTAMP:   ${{ github.event.client_payload.timestamp }}"
+          echo "VOICE:       ${{ github.event.client_payload.voice || 'expr-voice-2-f' }}"
+          echo "--------------------------------"
 
-
-      # Cache Poetry virtualenv + pip packages
-      - name: Cache Poetry
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/pypoetry
-            ~/.cache/pip
-            .venv
-          key: poetry-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
-          restore-keys: |
-            poetry-${{ runner.os }}-
-
-      - name: Install Poetry
+      # 4️⃣ Install Python deps (KittenTTS from .whl + essentials)
+      - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install poetry
+          pip install --upgrade pip
+          pip install soundfile requests
+          pip install https://github.com/KittenML/KittenTTS/releases/download/0.1/kittentts-0.1.0-py3-none-any.whl
 
-      - name: Install dependencies with Poetry
+      # 5️⃣ Generate TTS audio from payload
+      - name: Generate TTS audio
         run: |
-          poetry install --no-interaction --no-root
+          python - << 'EOF'
+          import os, soundfile as sf
+          from kittentts import KittenTTS
 
-      - name: Run TTS
-        run: |
-          poetry run python scripts/infer.py \
-            --text "Hello from KittenTTS!" \
-            --output tts_output.wav
+          chat_id = os.environ["CHAT_ID"]
+          text    = os.environ["ORIG_MSG"]
+          voice   = os.environ.get("VOICE", "expr-voice-2-f")
 
-      - name: Send to Telegram
-        if: success()
+          print(f"Generating TTS for chat_id={chat_id}, voice={voice}")
+          fname = "tts_output.wav"
+          model = KittenTTS("KittenML/kitten-tts-nano-0.1")
+          audio = model.generate(text, voice=voice)
+          sf.write(fname, audio, 24000)
+          print(f"Generated file: {fname}")
+          EOF
         env:
-          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-          CHAT_ID: ${{ github.event.client_payload.chat_id || secrets.DEFAULT_CHAT_ID }}
+          CHAT_ID:  ${{ github.event.client_payload.telegram_chat_id }}
+          ORIG_MSG: ${{ github.event.client_payload.original_message }}
+          VOICE:    ${{ github.event.client_payload.voice }}
+
+      # 6️⃣ Send the voice message directly to Telegram
+      - name: Send voice message to Telegram
+        env:
+          CHAT_ID: ${{ github.event.client_payload.telegram_chat_id }}
         run: |
+          BOT_TOKEN="bskdksfsdfihewu"  # ⚠️ Hardcoded token (for testing only!)
           curl -s -X POST \
             -H "Content-Type: multipart/form-data" \
             -F chat_id="$CHAT_ID" \
             -F voice="@tts_output.wav" \
-            "https://api.telegram.org/bot8276916788:AAFqYhxqLjQMtw6BTmFzMf1AyYHWDhDVhtA/sendVoice"
-
+            "https://api.telegram.org/bot$BOT_TOKEN/sendVoice"
